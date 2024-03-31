@@ -1,0 +1,82 @@
+clear all
+close all
+clc
+%% primeiro passo: declaracao das variaveis
+N=1000; %numero de nos
+q = 2050; %peso especifico
+q_ponto=0; %geracao
+k=0.52; %coeficiente de condutividade
+c=1860; %calor especifico Q
+hint=0; %coeficiente de conveccao extremidade direita
+hext=1000000; %coeficiente de conveccao extremidade esquerda
+text=-15; %temperaturas contorno extremidade esquerda
+tint=20; %temperaturas contorno extremidade direita
+dx=0.1; %expaçamento dx
+tant= zeros(1, N); %Temperaturas na iteração anterior do passo de tempo atual
+erro=1; %variavel do erro
+tmax=3600000; %tempo maximo/final
+dt=600; %Passo de tempo
+t = 0; %vetor tempo
+T0 = ones(1, N); %vetor temperatura no nivel n
+T =ones(1, N); %vetor temperatura desconhecida no nivel n+1
+%inicializando
+T(:) = 20; %Condições iniciais
+while t<= tmax %para cada nivel de tempo sera realizado a logica que segue
+T0 = T; %T0 vai copiar os valores de T anteriores
+cont=0; %inicializador da contagem de iteracoes
+T
+while erro >= 0.0001 && cont <= 1000 % Adiciona uma contagem máxima de iterações e minimo de erro aceitavel
+tant =T; %cópia do vetor T e atribui essa cópia à variável tant antes do cálculos nele.
+ap = zeros(1, N); %vetores iniciais de armazenamento
+ae = zeros(1, N);
+aw = zeros(1, N);
+B = zeros(1, N);
+for j = 1:N
+%Cálculo dos coeficientes dos nós
+ap(1) = ((hext / dx) + (k / dx^2) + ((q * c )/ (2 * dt))); % Nós iniciais
+ae(1) = k / dx^2;
+B(1) = (q_ponto / 2) + ((q * c * T0(1) )/ (2 * dt)) + (hext * text / dx);
+ap(N) = (((hint / dx) + (k / dx^2)) + (q * c / (2 * dt))); % Nós finais
+aw(N) = k / dx^2;
+B(N) = ((q_ponto / 2) + (hint * tint / dx) + (q * c * T0(end)) / (2 * dt));
+end
+for j=2:N-1
+ap(j) = ((k / dx^2) + (k / dx^2 )+( q * c / dt)); % loop para os nós intermediários
+ae(j) = (k / dx^2 );
+aw(j) = (k / dx^2 );
+B(j) = q_ponto + ((q * c * T0(j) )/ dt);
+end
+% função TDMA
+P = zeros(1, N);
+Q = zeros(1, N);
+for j = 1:N
+if j == 1
+P(j) = ae(j) / ap(j); %varrendo cada nó para calculo dos Q e P
+Q(j) = B(j) / ap(j);
+else
+P(j) = ae(j) / (ap(j) - aw(j) * P(j-1));
+Q(j) = (B(j) + aw(j) * Q(j-1)) / (ap(j) - aw(j) * P(j-1));
+end
+end
+% calculo das temperaturas
+for j=N:-1:1 %voltando,determinanto os valores de T
+if j==N %para o ultimo no
+T(j)=Q(j);
+else
+T(j)= P(j)* T(j+1) + Q(j); %para os demais nós
+end
+end
+if abs((tant- T) ./ T) > erro;
+erro = max(abs((tant- T) ./ T)); %calculando o erro relativo
+end
+cont = cont + 1;
+end
+t=t+dt;
+end
+x = 0:dx:(N-1)*dx; % Vetor de distâncias
+figure;
+plot(x, T, '*-g');
+title('Distribuição de Temperatura');
+xlabel('Ao longo dos nós');
+ylabel('Temperatura (°C)');
+grid on;
